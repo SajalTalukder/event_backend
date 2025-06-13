@@ -17,7 +17,10 @@ app.use(helmet());
 
 app.use(
   cors({
-    origin: ["http://localhost:3000"],
+    origin: [
+      "http://localhost:3000",
+      "https://eventify-woad-seven.vercel.app/",
+    ],
     credentials: true,
   })
 );

@@ -1,0 +1,36 @@
+{
+  "name": "event_management",
+  "version": "1.0.0",
+  "description": "event-management webiste",
+  "license": "ISC",
+  "author": "sajal talukder",
+  "type": "commonjs",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cloudinary": "^2.6.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "cron": "^4.3.1",
+    "datauri": "^4.1.0",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "express-mongo-sanitize": "^2.2.0",
+    "express-rate-limit": "^7.5.0",
+    "hbs": "^4.2.0",
+    "helmet": "^8.1.0",
+    "hpp": "^0.2.3",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.15.1",
+    "morgan": "^1.10.0",
+    "multer": "^2.0.0",
+    "nodemailer": "^7.0.3",
+    "sharp": "^0.34.2",
+    "slugify": "^1.6.6",
+    "validator": "^13.15.15"
+  }
+}

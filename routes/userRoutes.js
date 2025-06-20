@@ -10,6 +10,8 @@ const {
   changePassword,
 } = require("../controllers/authController");
 const isAuthenticated = require("../middlewares/isAuthenticated");
+const upload = require("../middlewares/multer");
+const { updateProfile } = require("../controllers/userController");
 
 const router = express.Router();
 
@@ -21,5 +23,12 @@ router.post("/logout", logout);
 router.post("/forget-password", forgetPassword);
 router.post("/reset-password", resetPassword);
 router.post("/change-password", isAuthenticated, changePassword);
+
+router.patch(
+  "/update-profile",
+  isAuthenticated,
+  upload.single("profilePhoto"),
+  updateProfile
+);
 
 module.exports = router;

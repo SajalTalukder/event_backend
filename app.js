@@ -60,7 +60,12 @@ app.use((req, res, next) => {
   // console.log(req.headers);
   next();
 });
-
+app.use("/", (req, res, next) => {
+  res.status(200).json({
+    status: "success",
+    message: "Just for testing",
+  });
+});
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/events", eventRouter);
 

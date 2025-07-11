@@ -10,13 +10,13 @@ const generateOTP = require("../utils/generateOTP");
 const sendEmail = require("../utils/email");
 
 /* ---------- helpers ---------- */
-const signToken = (id) =>
-  jwt.sign({ id }, process.env.JWT_SECRET, {
+const signToken = (id, role) =>
+  jwt.sign({ id, role }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN,
   });
 
 const createSendToken = (user, statusCode, res, message) => {
-  const token = signToken(user._id);
+  const token = signToken(user._id, user.role);
 
   res.cookie("token", token, {
     expires: new Date(

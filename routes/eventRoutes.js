@@ -5,6 +5,9 @@ const {
   getEvents,
   updateEvent,
   deleteEvent,
+  getEventById,
+  registerEvent,
+  getLatestEvents,
 } = require("../controllers/eventController");
 const authorizeRoles = require("../middlewares/authorizeRoles");
 const upload = require("../middlewares/multer");
@@ -12,6 +15,8 @@ const upload = require("../middlewares/multer");
 const router = express.Router();
 
 router.get("/all-events", getEvents);
+
+router.get("/single/:id", getEventById);
 
 router.post(
   "/create-event",
@@ -35,5 +40,9 @@ router.delete(
   authorizeRoles("organizer"),
   deleteEvent
 );
+
+router.post("/register/:id", isAuthenticated, registerEvent);
+
+router.get("/latest", getLatestEvents);
 
 module.exports = router;

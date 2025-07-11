@@ -69,6 +69,41 @@ exports.getEvents = catchAsync(async (req, res, next) => {
   });
 });
 
+exports.getLatestEvents = catchAsync(async (req, res, next) => {
+  const events = await Event.find({})
+    .sort({ createdAt: -1 }) // Sort by newest
+    .limit(6); // Limit to 6 or 7
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      events,
+    },
+  });
+});
+
+exports.getEventById = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+  console.log(id);
+
+  const event = await Event.findById(id).populate(
+    "createdBy",
+    "username organizationName profilePhoto organizationURL"
+  );
+  console.log(event);
+
+  if (!event) {
+    return next(new AppError("Event not found", 404));
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      event,
+    },
+  });
+});
+
 // Create event
 
 exports.createEvent = catchAsync(async (req, res, next) => {
@@ -211,18 +246,16 @@ exports.updateEvent = catchAsync(async (req, res, next) => {
   });
 });
 
-// Delete Event
 exports.deleteEvent = catchAsync(async (req, res, next) => {
   const eventId = req.params.id;
   const userId = req.user._id;
 
   const event = await Event.findById(eventId);
-
   if (!event) {
     return next(new AppError("Event not found", 404));
   }
 
-  // Check ownership
+  // Authorization check
   if (!event.createdBy.equals(userId)) {
     return next(
       new AppError("You are not authorized to delete this event", 403)
@@ -234,16 +267,64 @@ exports.deleteEvent = catchAsync(async (req, res, next) => {
     await deleteFromCloudinary(event.banner.public_id);
   }
 
-  // Remove event reference from the organizer
+  // Remove event from organizer
   await User.findByIdAndUpdate(userId, {
     $pull: { createdEvents: eventId },
   });
 
-  // Delete the event
+  // ❗ Remove event from all participants' registerdEvents
+  await User.updateMany(
+    { registerdEvents: eventId },
+    { $pull: { registerdEvents: eventId } }
+  );
+
+  // Delete the actual event
   await event.deleteOne();
 
   res.status(200).json({
     status: "success",
     message: "Event deleted successfully",
+  });
+});
+
+exports.registerEvent = catchAsync(async (req, res, next) => {
+  const userId = req.user._id;
+  const eventId = req.params.id;
+
+  const user = await User.findById(userId);
+  if (!user) return next(new AppError("User not found", 404));
+
+  const event = await Event.findById(eventId);
+  if (!event) return next(new AppError("Event not found", 404));
+
+  // Prevent organizer from registering their own event
+  if (event.createdBy.toString() === userId.toString()) {
+    return next(
+      new AppError("Organizers cannot register for their own event", 400)
+    );
+  }
+
+  // Check if user already registered
+  if (user.registeredEvents.includes(eventId)) {
+    return next(new AppError("You are already registered for this event", 400));
+  }
+
+  // Check if user is already in event's attendees
+  if (event.attendees.includes(userId)) {
+    return next(new AppError("Already in event attendees", 400));
+  }
+
+  // Register user
+  user.registeredEvents.push(eventId);
+  event.attendees.push(userId);
+
+  await Promise.all([
+    user.save({ validateBeforeSave: false }),
+    event.save({ validateBeforeSave: false }),
+  ]);
+
+  res.status(200).json({
+    status: "success",
+    message: "Successfully registered for the event",
   });
 });

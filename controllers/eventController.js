@@ -105,7 +105,6 @@ exports.getEventById = catchAsync(async (req, res, next) => {
 });
 
 // Create event
-
 exports.createEvent = catchAsync(async (req, res, next) => {
   const userId = req.user._id;
 
@@ -117,9 +116,13 @@ exports.createEvent = catchAsync(async (req, res, next) => {
     time,
     location,
     additionalInfo,
-    trainer,
+    trainerName,
     guest,
+    capacity,
+    category,
   } = req.body;
+
+  console.log("Trainer name ", trainerName);
 
   // Check for banner image
   const bannerImage = req.file;
@@ -127,21 +130,34 @@ exports.createEvent = catchAsync(async (req, res, next) => {
     return next(new AppError("Event banner image is required", 400));
   }
 
+  // 🔹 Date & Time Validation
+  const eventDateTime = new Date(`${date}T${time}`);
+  const now = new Date();
+
+  if (eventDateTime <= now) {
+    return next(
+      new AppError(
+        "You cannot create an event in the past or earlier today",
+        400
+      )
+    );
+  }
+
+  // 🔹 Always set status to "upcoming" for valid future events
+  const status = "upcoming";
+
   // Optimize and upload to Cloudinary
   const optimizedBuffer = await sharp(bannerImage.buffer)
     .resize({ width: 1200, height: 800, fit: "cover" })
     .toFormat("jpeg", { quality: 80 })
     .toBuffer();
 
-  // Create a mock file object for getDataUri
   const optimizedFile = {
-    originalname: req.file.originalname.replace(/\.[^/.]+$/, ".jpeg"), // ensure extension is jpeg
+    originalname: req.file.originalname.replace(/\.[^/.]+$/, ".jpeg"),
     buffer: optimizedBuffer,
   };
 
-  // Use getDataUri
   const fileUri = getDataUri(optimizedFile);
-
   const cloudResponse = await uploadToCloudinary(fileUri);
 
   // Create the event
@@ -153,13 +169,16 @@ exports.createEvent = catchAsync(async (req, res, next) => {
     time,
     location,
     additionalInfo,
-    trainer,
+    trainerName,
     guest,
     banner: {
       publicId: cloudResponse.public_id,
       secure_url: cloudResponse.secure_url,
     },
     createdBy: userId,
+    status, // 🔹 Added here
+    capacity,
+    category,
   });
 
   // Add event ID to the organizer’s createdEvents array
@@ -169,7 +188,7 @@ exports.createEvent = catchAsync(async (req, res, next) => {
 
   res.status(201).json({
     status: "success",
-    message: "Evenet Created!",
+    message: "Event Created!",
     data: {
       event,
     },
@@ -177,7 +196,6 @@ exports.createEvent = catchAsync(async (req, res, next) => {
 });
 
 // Update event
-
 exports.updateEvent = catchAsync(async (req, res, next) => {
   const userId = req.user._id;
   const eventId = req.params.id;
@@ -200,8 +218,10 @@ exports.updateEvent = catchAsync(async (req, res, next) => {
     "time",
     "location",
     "additionalInfo",
-    "trainer",
+    "trainerName",
     "guest",
+    "capacity", // ✅ added
+    "category", // ✅ added
   ];
 
   allowedFields.forEach((field) => {
@@ -326,5 +346,54 @@ exports.registerEvent = catchAsync(async (req, res, next) => {
   res.status(200).json({
     status: "success",
     message: "Successfully registered for the event",
+  });
+});
+
+exports.getLoginOrganizerEvents = catchAsync(async (req, res, next) => {
+  const organizerId = req.user.id;
+  const { search, status, page = 1, limit = 10 } = req.query;
+
+  const filter = { createdBy: organizerId };
+
+  // 1) Search filter
+  if (search) {
+    filter.name = { $regex: search, $options: "i" };
+  }
+
+  // 2) Status filter
+  if (status === "upcoming") {
+    filter.date = { $gte: new Date() };
+  } else if (status === "completed") {
+    filter.date = { $lt: new Date() };
+  }
+
+  // Convert pagination params to numbers
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+
+  // Get total for pagination
+  const totalEvents = await Event.countDocuments(filter);
+
+  // Query with filters + pagination
+  const events = await Event.find(filter)
+    .sort({ createdAt: -1 }) // latest first
+    .skip(skip)
+    .limit(parseInt(limit))
+    .populate({
+      path: "createdBy",
+      select: "username profilePhoto",
+    })
+    .lean();
+
+  res.status(200).json({
+    status: "success",
+    message: "Organizer Events",
+    page: parseInt(page),
+    limit: parseInt(limit),
+    totalEvents,
+    totalPages: Math.ceil(totalEvents / parseInt(limit)),
+    results: events.length,
+    data: {
+      events,
+    },
   });
 });

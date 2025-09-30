@@ -8,6 +8,7 @@ const {
   getEventById,
   registerEvent,
   getLatestEvents,
+  getLoginOrganizerEvents,
 } = require("../controllers/eventController");
 const authorizeRoles = require("../middlewares/authorizeRoles");
 const upload = require("../middlewares/multer");
@@ -44,5 +45,7 @@ router.delete(
 router.post("/register/:id", isAuthenticated, registerEvent);
 
 router.get("/latest", getLatestEvents);
+
+router.get("/organizer-events", isAuthenticated, getLoginOrganizerEvents);
 
 module.exports = router;

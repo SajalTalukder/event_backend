@@ -9,11 +9,11 @@ process.on("uncaughtException", (err) => {
 
 dotenv.config({ path: "./config.env" });
 const app = require("./app");
-const job = require("./utils/cornjob");
+const { startAll } = require("./utils/cornjob");
 
 const DB = process.env.DB.replace("<PASSWORD>", process.env.DB_PASSWORD);
 
-job.start();
+startAll();
 
 mongoose
   .connect(DB)

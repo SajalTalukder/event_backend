@@ -17,6 +17,11 @@ const eventSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    status: {
+      type: String,
+      enum: ["upcoming", "completed"],
+      default: "upcoming",
+    },
     price: {
       type: Number,
       required: true,
@@ -33,6 +38,25 @@ const eventSchema = new mongoose.Schema(
     location: {
       type: String,
       required: true,
+    },
+    capacity: {
+      type: Number,
+      min: 1,
+      default: 50, // optional default
+    },
+
+    category: {
+      type: String,
+      enum: [
+        "Workshop",
+        "Seminar",
+        "Concert",
+        "Conference",
+        "Meetup",
+        "Webinar",
+        "Other",
+      ], // controlled values
+      default: "Other",
     },
     additionalInfo: {
       type: String,

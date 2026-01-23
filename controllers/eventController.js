@@ -51,7 +51,7 @@ exports.getEvents = catchAsync(async (req, res, next) => {
 
   const [events, total] = await Promise.all([
     Event.find(filters)
-      .sort({ date: 1 }) // sort by soonest
+      .sort({ createdAt: -1 }) // sort by soonest
       .skip(skip)
       .limit(limitNumber)
       .populate("createdBy", "username email"),
@@ -394,6 +394,75 @@ exports.getLoginOrganizerEvents = catchAsync(async (req, res, next) => {
     results: events.length,
     data: {
       events,
+    },
+  });
+});
+
+exports.getOrganizerRecentEvents = catchAsync(async (req, res, next) => {
+  console.log("Fetching recent events for organizer");
+
+  const limit = 5;
+  const organizer = req.user;
+
+  if (!organizer || organizer.role !== "organizer") {
+    return next(new AppError("Only organizers can access their events", 403));
+  }
+
+  const events = await Event.find({ createdBy: organizer._id })
+    .sort({ createdAt: -1 })
+    .limit(limit);
+
+  if (!events) return next(new AppError("No events found", 404));
+
+  res.status(200).json({
+    status: "success",
+    results: events.length,
+    data: {
+      events,
+    },
+  });
+});
+
+// Get attendees for all events of a logged-in organizer
+exports.getOrganizerAttendees = catchAsync(async (req, res, next) => {
+  const organizerId = req.user._id;
+  const { eventId } = req.query;
+
+  let filter = { createdBy: organizerId };
+  if (eventId) filter._id = eventId;
+
+  const events = await Event.find(filter)
+    .populate({
+      path: "attendees",
+      select: "username email profilePhoto",
+    })
+    .select("name date time location attendees");
+
+  // 🔥 Flat array with attendee + event info
+  const attendeesWithEvent = [];
+
+  events.forEach((event) => {
+    event.attendees.forEach((user) => {
+      attendeesWithEvent.push({
+        attendeeId: user._id,
+        username: user.username,
+        email: user.email,
+        profilePhoto: user.profilePhoto,
+        eventId: event._id,
+        eventName: event.name,
+        eventDate: event.date,
+        eventTime: event.time,
+        eventLocation: event.location,
+      });
+    });
+  });
+
+  res.status(200).json({
+    status: "success",
+    totalEvents: events.length,
+    totalAttendees: attendeesWithEvent.length,
+    data: {
+      attendees: attendeesWithEvent.reverse(),
     },
   });
 });

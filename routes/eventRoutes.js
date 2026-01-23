@@ -9,6 +9,7 @@ const {
   registerEvent,
   getLatestEvents,
   getLoginOrganizerEvents,
+  getOrganizerRecentEvents,
 } = require("../controllers/eventController");
 const authorizeRoles = require("../middlewares/authorizeRoles");
 const upload = require("../middlewares/multer");
@@ -47,5 +48,11 @@ router.post("/register/:id", isAuthenticated, registerEvent);
 router.get("/latest", getLatestEvents);
 
 router.get("/organizer-events", isAuthenticated, getLoginOrganizerEvents);
+
+router.get(
+  "/organizer-recent-events",
+  isAuthenticated,
+  getOrganizerRecentEvents
+);
 
 module.exports = router;

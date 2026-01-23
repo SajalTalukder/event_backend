@@ -13,7 +13,7 @@ const { startAll } = require("./utils/cornjob");
 
 const DB = process.env.DB.replace("<PASSWORD>", process.env.DB_PASSWORD);
 
-startAll();
+// startAll();
 
 mongoose
   .connect(DB)

@@ -1,7 +1,7 @@
 const User = require("../models/userModel");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/appError");
-
+const Event = require("../models/eventModel");
 const sharp = require("sharp");
 const { uploadToCloudinary } = require("../utils/cloudinary");
 const getDataUri = require("../utils/datauri");
@@ -15,11 +15,9 @@ exports.getMe = catchAsync(async (req, res, next) => {
     )
     .populate({
       path: "createdEvents",
-      select: "name banner.secure_url date location price",
     })
     .populate({
       path: "registeredEvents",
-      select: "name banner.secure_url date location price",
     });
 
   if (!user) {
@@ -89,5 +87,86 @@ exports.updateProfile = catchAsync(async (req, res, next) => {
     status: "success",
     message: "Profile updated successfully",
     data: { user: updatedUser },
+  });
+});
+
+exports.getOrganizerDashboardStats = catchAsync(async (req, res, next) => {
+  const organizerId = req.user._id;
+
+  if (req.user.role !== "organizer") {
+    return next(new AppError("Only organizers can access dashboard", 403));
+  }
+
+  // 🗓 Date helpers
+  const now = new Date();
+
+  const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const startOfPreviousMonth = new Date(
+    now.getFullYear(),
+    now.getMonth() - 1,
+    1
+  );
+
+  const endOfPreviousMonth = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    0,
+    23,
+    59,
+    59
+  );
+
+  // 🔹 All events created by this organizer
+  const events = await Event.find({ createdBy: organizerId });
+
+  // 🔢 CURRENT TOTALS (organizer only)
+  let totalAttendees = 0;
+  let totalRevenue = 0;
+
+  events.forEach((event) => {
+    totalAttendees += event.attendees.length;
+    totalRevenue += event.price * event.attendees.length;
+  });
+
+  const totalEvents = events.length;
+
+  // 🔙 PREVIOUS MONTH DATA (organizer only)
+  const prevMonthEvents = await Event.find({
+    createdBy: organizerId,
+    createdAt: {
+      $gte: startOfPreviousMonth,
+      $lte: endOfPreviousMonth,
+    },
+  });
+
+  let prevAttendees = 0;
+  let prevRevenue = 0;
+
+  prevMonthEvents.forEach((event) => {
+    prevAttendees += event.attendees.length;
+    prevRevenue += event.price * event.attendees.length;
+  });
+
+  // 📈 Growth helper
+  const growthPercent = (current, previous) => {
+    if (previous === 0) return current > 0 ? 100 : 0;
+    return Number((((current - previous) / previous) * 100).toFixed(2));
+  };
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      totals: {
+        totalEvents,
+        totalAttendees,
+        totalRevenue,
+      },
+      growth: {
+        events: growthPercent(totalEvents, prevMonthEvents.length),
+        attendees: growthPercent(totalAttendees, prevAttendees),
+        revenue: growthPercent(totalRevenue, prevRevenue),
+      },
+    },
   });
 });

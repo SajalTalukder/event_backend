@@ -72,7 +72,8 @@ exports.getEvents = catchAsync(async (req, res, next) => {
 exports.getLatestEvents = catchAsync(async (req, res, next) => {
   const events = await Event.find({})
     .sort({ createdAt: -1 }) // Sort by newest
-    .limit(6); // Limit to 6 or 7
+    .limit(6) // Limit to 6 or 7
+    .populate("createdBy", "username email");
 
   res.status(200).json({
     status: "success",

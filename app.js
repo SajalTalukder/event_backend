@@ -11,6 +11,8 @@ const mongoSanitize = require("express-mongo-sanitize");
 const AppError = require("./utils/appError");
 const globalErrorHandler = require("./controllers/errorController");
 
+app.set("trust proxy", 1);
+
 app.use(cookieParser());
 
 app.use(helmet());
@@ -19,7 +21,7 @@ app.use(
   cors({
     origin: ["http://localhost:3000", "https://eventify-woad-seven.vercel.app"],
     credentials: true,
-  })
+  }),
 );
 
 // Limit requests from the same IP

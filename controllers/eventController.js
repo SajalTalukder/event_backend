@@ -88,7 +88,7 @@ exports.getEventById = catchAsync(async (req, res, next) => {
 
   const event = await Event.findById(id).populate(
     "createdBy",
-    "username organizationName profilePhoto organizationURL"
+    "username organizationName profilePhoto organizationURL",
   );
   console.log(event);
 
@@ -138,8 +138,8 @@ exports.createEvent = catchAsync(async (req, res, next) => {
     return next(
       new AppError(
         "You cannot create an event in the past or earlier today",
-        400
-      )
+        400,
+      ),
     );
   }
 
@@ -278,7 +278,7 @@ exports.deleteEvent = catchAsync(async (req, res, next) => {
   // Authorization check
   if (!event.createdBy.equals(userId)) {
     return next(
-      new AppError("You are not authorized to delete this event", 403)
+      new AppError("You are not authorized to delete this event", 403),
     );
   }
 
@@ -295,7 +295,7 @@ exports.deleteEvent = catchAsync(async (req, res, next) => {
   // ❗ Remove event from all participants' registerdEvents
   await User.updateMany(
     { registerdEvents: eventId },
-    { $pull: { registerdEvents: eventId } }
+    { $pull: { registerdEvents: eventId } },
   );
 
   // Delete the actual event
@@ -320,13 +320,37 @@ exports.registerEvent = catchAsync(async (req, res, next) => {
   // Prevent organizer from registering their own event
   if (event.createdBy.toString() === userId.toString()) {
     return next(
-      new AppError("Organizers cannot register for their own event", 400)
+      new AppError("Organizers cannot register for their own event", 400),
     );
   }
 
   // Check if user already registered
   if (user.registeredEvents.includes(eventId)) {
     return next(new AppError("You are already registered for this event", 400));
+  }
+
+  if (event.status === "completed") {
+    return next(
+      new AppError(
+        "Registration is closed. This event has been completed.",
+        400,
+      ),
+    );
+  }
+
+  // ❌ Prevent registration if event date is in the past
+  if (new Date(event.date) < new Date()) {
+    return next(
+      new AppError(
+        "Registration is closed. This event has already ended.",
+        400,
+      ),
+    );
+  }
+
+  // ❌ Prevent registration if event is full
+  if (event.attendees.length >= event.capacity) {
+    return next(new AppError("This event is already full.", 400));
   }
 
   // Check if user is already in event's attendees

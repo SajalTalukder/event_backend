@@ -240,11 +240,12 @@ exports.login = catchAsync(async (req, res, next) => {
 
 // Logout functionality
 exports.logout = catchAsync(async (req, res, next) => {
-  res.clearCookie("token", {
+  // Clear the token cookie
+  res.cookie("token", "loggedout", {
+    expires: new Date(Date.now() + 10 * 1000), // 10 seconds expiration
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: process.env.NODE_ENV === "production" ? "none" : "Lax",
-    path: "/",
   });
 
   res.status(200).json({

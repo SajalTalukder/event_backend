@@ -20,7 +20,7 @@ const createSendToken = (user, statusCode, res, message) => {
 
   res.cookie("token", token, {
     expires: new Date(
-      Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000
+      Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000,
     ),
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
@@ -42,7 +42,7 @@ const createSendToken = (user, statusCode, res, message) => {
 const loadTemplate = (name, replacements) => {
   const file = fs.readFileSync(
     path.join(__dirname, "../emailTemplate", name),
-    "utf-8"
+    "utf-8",
   );
   return hbs.compile(file)(replacements);
 };
@@ -73,8 +73,8 @@ exports.signup = catchAsync(async (req, res, next) => {
       return next(
         new AppError(
           "Organizer signup requires phoneNumber, organizationName and organizationURL",
-          400
-        )
+          400,
+        ),
       );
   }
 
@@ -115,7 +115,7 @@ exports.signup = catchAsync(async (req, res, next) => {
       newUser,
       201,
       res,
-      "Registration successful. Check your email for OTP verification."
+      "Registration successful. Check your email for OTP verification.",
     );
   } catch (err) {
     // Roll back if email fails
@@ -125,8 +125,8 @@ exports.signup = catchAsync(async (req, res, next) => {
     next(
       new AppError(
         "There was an error sending the verification email. Please try again later.",
-        500
-      )
+        500,
+      ),
     );
   }
 });
@@ -151,7 +151,7 @@ exports.verifyAccount = catchAsync(async (req, res, next) => {
 
   if (Date.now() > user.otpExpires) {
     return next(
-      new AppError("OTP has expired. Please request a new OTP.", 400)
+      new AppError("OTP has expired. Please request a new OTP.", 400),
     );
   }
 
@@ -218,8 +218,8 @@ exports.resendOTP = catchAsync(async (req, res, next) => {
     return next(
       new AppError(
         "There was an error sending the email. Try again later!",
-        500
-      )
+        500,
+      ),
     );
   }
 });
@@ -240,11 +240,11 @@ exports.login = catchAsync(async (req, res, next) => {
 
 // Logout functionality
 exports.logout = catchAsync(async (req, res, next) => {
-  // Clear the token cookie
-  res.cookie("token", "loggedout", {
-    expires: new Date(Date.now() + 10 * 1000), // 10 seconds expiration
+  res.clearCookie("token", {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production", // Only set secure flag in production
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "Lax",
+    path: "/",
   });
 
   res.status(200).json({
@@ -287,7 +287,7 @@ exports.forgetPassword = catchAsync(async (req, res, next) => {
     await user.save({ validateBeforeSave: false });
     return next(
       new AppError("There was an error sending the email. Try again later!"),
-      500
+      500,
     );
   }
 });
@@ -315,7 +315,7 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
     Date.now() > user.resetPasswordOTPExpires
   ) {
     return next(
-      new AppError("OTP has expired. Please request a new one.", 400)
+      new AppError("OTP has expired. Please request a new one.", 400),
     );
   }
 
@@ -350,7 +350,7 @@ exports.changePassword = catchAsync(async (req, res, next) => {
   // Check if the new password and confirm password match
   if (newPassword !== newPasswordConfirm) {
     return next(
-      new AppError("New password and confirm password do not match", 400)
+      new AppError("New password and confirm password do not match", 400),
     );
   }
 

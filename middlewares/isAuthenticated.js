@@ -1,15 +1,16 @@
-// isAuthenticated.js
-const jwt = require("jsonwebtoken");
-const User = require("../models/userModel"); // Adjust the path to your user model
-const AppError = require("../utils/appError");
-const catchAsync = require("../utils/catchAsync");
+// middleware/isAuthenticated.js
+
+import jwt from "jsonwebtoken";
+import User from "../models/userModel.js";
+import AppError from "../utils/appError.js";
+import catchAsync from "../utils/catchAsync.js";
 
 const isAuthenticated = catchAsync(async (req, res, next) => {
   const token = req.cookies.token || req.headers.authorization?.split(" ")[1];
 
   if (!token) {
     return next(
-      new AppError("You are not logged in! Please log in to access.", 401)
+      new AppError("You are not logged in! Please log in to access.", 401),
     );
   }
 
@@ -19,7 +20,7 @@ const isAuthenticated = catchAsync(async (req, res, next) => {
 
   if (!currentUser) {
     return next(
-      new AppError("The user belonging to this token does not exist.", 401)
+      new AppError("The user belonging to this token does not exist.", 401),
     );
   }
 
@@ -27,4 +28,4 @@ const isAuthenticated = catchAsync(async (req, res, next) => {
   next();
 });
 
-module.exports = isAuthenticated;
+export default isAuthenticated;

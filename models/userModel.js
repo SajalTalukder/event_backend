@@ -1,6 +1,6 @@
-const mongoose = require("mongoose");
-const bcrypt = require("bcryptjs");
-const validator = require("validator");
+import mongoose from "mongoose";
+import bcrypt from "bcryptjs";
+import validator from "validator";
 
 const userSchema = new mongoose.Schema(
   {
@@ -19,7 +19,7 @@ const userSchema = new mongoose.Schema(
       public_id: String,
       secure_url: {
         type: String,
-        default: "", // You can also set a default avatar URL
+        default: "",
       },
     },
     phoneNumber: {
@@ -91,20 +91,25 @@ const userSchema = new mongoose.Schema(
       },
     ],
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
+/* ---------- MIDDLEWARE ---------- */
 // Hash password before saving
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
+
   this.password = await bcrypt.hash(this.password, 12);
   this.passwordConfirm = undefined;
   next();
 });
 
-// Method to compare passwords
+/* ---------- METHODS ---------- */
+// Compare passwords
 userSchema.methods.correctPassword = async function (candidate, real) {
   return await bcrypt.compare(candidate, real);
 };
 
-module.exports = mongoose.model("User", userSchema);
+const User = mongoose.model("User", userSchema);
+
+export default User;

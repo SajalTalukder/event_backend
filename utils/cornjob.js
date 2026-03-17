@@ -1,6 +1,6 @@
-const cron = require("cron");
-const https = require("https");
-const Event = require("../models/eventModel"); // make sure path is correct
+import cron from "cron";
+import https from "https";
+import Event from "../models/eventModel.js"; // make sure path is correct
 
 // ===== Render Keep Alive Job =====
 const URL = "https://eventify-ncnv.onrender.com";
@@ -25,7 +25,7 @@ const eventStatusJob = new cron.CronJob("0 0 * * *", async function () {
     const now = new Date();
     const updated = await Event.updateMany(
       { date: { $lt: now }, status: "upcoming" },
-      { $set: { status: "completed" } }
+      { $set: { status: "completed" } },
     );
     if (updated.modifiedCount > 0) {
       console.log(`✅ Events marked as completed: ${updated.modifiedCount}`);
@@ -36,10 +36,8 @@ const eventStatusJob = new cron.CronJob("0 0 * * *", async function () {
 });
 
 // ===== Export and Start Jobs =====
-module.exports = {
-  startAll: () => {
-    keepAliveJob.start();
-    eventStatusJob.start();
-    console.log("⏳ All cron jobs started");
-  },
+export const startAll = () => {
+  keepAliveJob.start();
+  eventStatusJob.start();
+  console.log("⏳ All cron jobs started");
 };

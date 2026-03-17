@@ -1,5 +1,6 @@
-const express = require("express");
-const {
+import express from "express";
+
+import {
   signup,
   verifyAccount,
   resendOTP,
@@ -8,19 +9,23 @@ const {
   forgetPassword,
   resetPassword,
   changePassword,
-} = require("../controllers/authController");
-const isAuthenticated = require("../middlewares/isAuthenticated");
-const authorizeRoles = require("../middlewares/authorizeRoles");
-const upload = require("../middlewares/multer");
-const {
+} from "../controllers/authController.js";
+
+import {
   updateProfile,
   getMe,
   getOrganizerDashboardStats,
-} = require("../controllers/userController");
-const { getOrganizerAttendees } = require("../controllers/eventController");
+} from "../controllers/userController.js";
+
+import { getOrganizerAttendees } from "../controllers/eventController.js";
+
+import isAuthenticated from "../middlewares/isAuthenticated.js";
+import authorizeRoles from "../middlewares/authorizeRoles.js";
+import upload from "../middlewares/multer.js";
 
 const router = express.Router();
 
+// Auth routes
 router.post("/signup", signup);
 router.post("/verify", isAuthenticated, verifyAccount);
 router.post("/resend-otp", isAuthenticated, resendOTP);
@@ -30,22 +35,22 @@ router.post("/forget-password", forgetPassword);
 router.post("/reset-password", resetPassword);
 router.patch("/change-password", isAuthenticated, changePassword);
 
+// User routes
 router.get("/me", isAuthenticated, getMe);
-
 router.patch(
   "/update-profile",
   isAuthenticated,
   upload.single("profilePhoto"),
-  updateProfile
+  updateProfile,
 );
 
+// Organizer routes
 router.get("/organizer/attendees", isAuthenticated, getOrganizerAttendees);
-
 router.get(
   "/dashboard",
-  isAuthenticated, // user must be logged in
-  authorizeRoles("organizer"), // only organizers
-  getOrganizerDashboardStats
+  isAuthenticated,
+  authorizeRoles("organizer"),
+  getOrganizerDashboardStats,
 );
 
-module.exports = router;
+export default router;

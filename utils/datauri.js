@@ -1,10 +1,9 @@
-const DataUriParser = require("datauri/parser");
-const path = require("path");
+import path from "path";
 
 const getDataUri = (file) => {
-  const parser = new DataUriParser();
-  const extName = path.extname(file.originalname).toString();
-  return parser.format(extName, file.buffer).content;
+  const ext = path.extname(file.originalname).slice(1); // remove the dot
+  const base64 = file.buffer.toString("base64");
+  return `data:image/${ext};base64,${base64}`;
 };
 
-module.exports = getDataUri;
+export default getDataUri;

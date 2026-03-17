@@ -1,18 +1,17 @@
-// middleware/authorizeRoles.js
+import AppError from "../utils/appError.js";
+
 const authorizeRoles = (...allowedRoles) => {
   return (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({ message: "Not authenticated" });
+      return next(new AppError("Not authenticated", 401));
     }
 
     if (!allowedRoles.includes(req.user.role)) {
-      return res
-        .status(403)
-        .json({ message: "Access denied: insufficient permissions" });
+      return next(new AppError("Access denied: insufficient permissions", 403));
     }
 
     next();
   };
 };
 
-module.exports = authorizeRoles;
+export default authorizeRoles;

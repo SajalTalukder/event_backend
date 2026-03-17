@@ -1,24 +1,21 @@
-const User = require("../models/userModel");
-const catchAsync = require("../utils/catchAsync");
-const AppError = require("../utils/appError");
-const Event = require("../models/eventModel");
-const sharp = require("sharp");
-const { uploadToCloudinary } = require("../utils/cloudinary");
-const getDataUri = require("../utils/datauri");
+import User from "../models/userModel.js";
+import catchAsync from "../utils/catchAsync.js";
+import AppError from "../utils/appError.js";
+import Event from "../models/eventModel.js";
+import sharp from "sharp";
+import { uploadToCloudinary } from "../utils/cloudinary.js";
+import getDataUri from "../utils/datauri.js";
 
-exports.getMe = catchAsync(async (req, res, next) => {
+/* ---------- GET ME ---------- */
+export const getMe = catchAsync(async (req, res, next) => {
   const userId = req.user._id;
 
   const user = await User.findById(userId)
     .select(
-      "-password -passwordConfirm -otp -otpExpires -resetPasswordOTP -resetPasswordOTPExpires"
+      "-password -passwordConfirm -otp -otpExpires -resetPasswordOTP -resetPasswordOTPExpires",
     )
-    .populate({
-      path: "createdEvents",
-    })
-    .populate({
-      path: "registeredEvents",
-    });
+    .populate("createdEvents")
+    .populate("registeredEvents");
 
   if (!user) {
     return next(new AppError("User not found", 404));
@@ -27,34 +24,31 @@ exports.getMe = catchAsync(async (req, res, next) => {
   res.status(200).json({
     status: "success",
     message: "User profile fetched successfully",
-    data: {
-      user,
-    },
+    data: { user },
   });
 });
 
-exports.updateProfile = catchAsync(async (req, res, next) => {
+/* ---------- UPDATE PROFILE ---------- */
+export const updateProfile = catchAsync(async (req, res, next) => {
   const userId = req.user._id;
   const role = req.user.role;
 
-  // Common fields
   const updateData = {
     username: req.body.username,
   };
 
-  // Organizer-only fields
   if (role === "organizer") {
     updateData.organizationName = req.body.organizationName;
     updateData.organizationURL = req.body.organizationURL;
     updateData.phoneNumber = req.body.phoneNumber;
   }
 
-  // Remove undefined/null/empty string values
+  // remove empty values
   Object.keys(updateData).forEach((key) => {
     if (!updateData[key]) delete updateData[key];
   });
 
-  // Handle profile picture upload (if any)
+  // profile photo upload
   if (req.file) {
     const resizedBuffer = await sharp(req.file.buffer)
       .resize(400, 400)
@@ -67,13 +61,13 @@ exports.updateProfile = catchAsync(async (req, res, next) => {
     });
 
     const cloudinaryRes = await uploadToCloudinary(fileUri);
+
     updateData.profilePhoto = {
       public_id: cloudinaryRes.public_id,
       secure_url: cloudinaryRes.secure_url,
     };
   }
 
-  // No fields to update
   if (Object.keys(updateData).length === 0) {
     return next(new AppError("No valid fields provided for update", 400));
   }
@@ -90,22 +84,20 @@ exports.updateProfile = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.getOrganizerDashboardStats = catchAsync(async (req, res, next) => {
+/* ---------- ORGANIZER DASHBOARD ---------- */
+export const getOrganizerDashboardStats = catchAsync(async (req, res, next) => {
   const organizerId = req.user._id;
 
   if (req.user.role !== "organizer") {
     return next(new AppError("Only organizers can access dashboard", 403));
   }
 
-  // 🗓 Date helpers
   const now = new Date();
-
-  const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
   const startOfPreviousMonth = new Date(
     now.getFullYear(),
     now.getMonth() - 1,
-    1
+    1,
   );
 
   const endOfPreviousMonth = new Date(
@@ -114,13 +106,12 @@ exports.getOrganizerDashboardStats = catchAsync(async (req, res, next) => {
     0,
     23,
     59,
-    59
+    59,
   );
 
-  // 🔹 All events created by this organizer
+  // current events
   const events = await Event.find({ createdBy: organizerId });
 
-  // 🔢 CURRENT TOTALS (organizer only)
   let totalAttendees = 0;
   let totalRevenue = 0;
 
@@ -131,7 +122,7 @@ exports.getOrganizerDashboardStats = catchAsync(async (req, res, next) => {
 
   const totalEvents = events.length;
 
-  // 🔙 PREVIOUS MONTH DATA (organizer only)
+  // previous month
   const prevMonthEvents = await Event.find({
     createdBy: organizerId,
     createdAt: {
@@ -148,7 +139,6 @@ exports.getOrganizerDashboardStats = catchAsync(async (req, res, next) => {
     prevRevenue += event.price * event.attendees.length;
   });
 
-  // 📈 Growth helper
   const growthPercent = (current, previous) => {
     if (previous === 0) return current > 0 ? 100 : 0;
     return Number((((current - previous) / previous) * 100).toFixed(2));

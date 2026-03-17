@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const eventSchema = new mongoose.Schema(
   {
@@ -42,9 +42,8 @@ const eventSchema = new mongoose.Schema(
     capacity: {
       type: Number,
       min: 1,
-      default: 50, // optional default
+      default: 50,
     },
-
     category: {
       type: String,
       enum: [
@@ -55,18 +54,12 @@ const eventSchema = new mongoose.Schema(
         "Meetup",
         "Webinar",
         "Other",
-      ], // controlled values
+      ],
       default: "Other",
     },
-    additionalInfo: {
-      type: String,
-    },
-    trainerName: {
-      type: String,
-    },
-    guest: {
-      type: String,
-    },
+    additionalInfo: String,
+    trainerName: String,
+    guest: String,
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -79,7 +72,9 @@ const eventSchema = new mongoose.Schema(
       },
     ],
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-module.exports = mongoose.model("Event", eventSchema);
+const Event = mongoose.model("Event", eventSchema);
+
+export default Event;

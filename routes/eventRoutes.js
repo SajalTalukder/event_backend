@@ -1,6 +1,10 @@
-const express = require("express");
-const isAuthenticated = require("../middlewares/isAuthenticated");
-const {
+import express from "express";
+
+import isAuthenticated from "../middlewares/isAuthenticated.js";
+import authorizeRoles from "../middlewares/authorizeRoles.js";
+import upload from "../middlewares/multer.js";
+
+import {
   createEvent,
   getEvents,
   updateEvent,
@@ -10,9 +14,7 @@ const {
   getLatestEvents,
   getLoginOrganizerEvents,
   getOrganizerRecentEvents,
-} = require("../controllers/eventController");
-const authorizeRoles = require("../middlewares/authorizeRoles");
-const upload = require("../middlewares/multer");
+} from "../controllers/eventController.js";
 
 const router = express.Router();
 
@@ -25,7 +27,7 @@ router.post(
   isAuthenticated,
   authorizeRoles("organizer", "admin"),
   upload.single("banner"),
-  createEvent
+  createEvent,
 );
 
 router.patch(
@@ -33,14 +35,14 @@ router.patch(
   isAuthenticated,
   authorizeRoles("organizer"),
   upload.single("banner"),
-  updateEvent
+  updateEvent,
 );
 
 router.delete(
   "/delete-event/:id",
   isAuthenticated,
   authorizeRoles("organizer"),
-  deleteEvent
+  deleteEvent,
 );
 
 router.post("/register/:id", isAuthenticated, registerEvent);
@@ -52,7 +54,7 @@ router.get("/organizer-events", isAuthenticated, getLoginOrganizerEvents);
 router.get(
   "/organizer-recent-events",
   isAuthenticated,
-  getOrganizerRecentEvents
+  getOrganizerRecentEvents,
 );
 
-module.exports = router;
+export default router;

@@ -1,13 +1,16 @@
-const sharp = require("sharp");
-const AppError = require("../utils/appError");
-const catchAsync = require("../utils/catchAsync");
-const Event = require("../models/eventModel");
-const User = require("../models/userModel");
-const getDataUri = require("../utils/datauri");
-const { uploadToCloudinary } = require("../utils/cloudinary");
+import sharp from "sharp";
+import AppError from "../utils/appError.js";
+import catchAsync from "../utils/catchAsync.js";
+import Event from "../models/eventModel.js";
+import User from "../models/userModel.js";
+import getDataUri from "../utils/datauri.js";
+import {
+  uploadToCloudinary,
+  deleteFromCloudinary,
+} from "../utils/cloudinary.js";
 
 // Get Event with filtering
-exports.getEvents = catchAsync(async (req, res, next) => {
+export const getEvents = catchAsync(async (req, res, next) => {
   const {
     search,
     maxPrice,
@@ -17,10 +20,8 @@ exports.getEvents = catchAsync(async (req, res, next) => {
     page = 1,
     limit = 10,
   } = req.query;
-
   const filters = {};
 
-  // Text search in name or location
   if (search) {
     filters.$or = [
       { name: { $regex: search, $options: "i" } },
@@ -28,17 +29,14 @@ exports.getEvents = catchAsync(async (req, res, next) => {
     ];
   }
 
-  // Max price filter
   if (maxPrice) {
     filters.price = { $lte: Number(maxPrice) };
   }
 
-  // Trainer name match
   if (trainerName) {
     filters.trainerName = { $regex: trainerName, $options: "i" };
   }
 
-  // Date range filter
   if (dateFrom || dateTo) {
     filters.date = {};
     if (dateFrom) filters.date.$gte = new Date(dateFrom);
@@ -51,7 +49,7 @@ exports.getEvents = catchAsync(async (req, res, next) => {
 
   const [events, total] = await Promise.all([
     Event.find(filters)
-      .sort({ createdAt: -1 }) // sort by soonest
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limitNumber)
       .populate("createdBy", "username email"),
@@ -63,52 +61,36 @@ exports.getEvents = catchAsync(async (req, res, next) => {
     total,
     page: pageNumber,
     count: events.length,
-    data: {
-      events,
-    },
+    data: { events },
   });
 });
 
-exports.getLatestEvents = catchAsync(async (req, res, next) => {
+// Get latest events
+export const getLatestEvents = catchAsync(async (req, res, next) => {
   const events = await Event.find({})
-    .sort({ createdAt: -1 }) // Sort by newest
-    .limit(6) // Limit to 6 or 7
+    .sort({ createdAt: -1 })
+    .limit(6)
     .populate("createdBy", "username email");
 
-  res.status(200).json({
-    status: "success",
-    data: {
-      events,
-    },
-  });
+  res.status(200).json({ status: "success", data: { events } });
 });
 
-exports.getEventById = catchAsync(async (req, res, next) => {
+// Get event by ID
+export const getEventById = catchAsync(async (req, res, next) => {
   const { id } = req.params;
-  console.log(id);
-
   const event = await Event.findById(id).populate(
     "createdBy",
     "username organizationName profilePhoto organizationURL",
   );
-  console.log(event);
 
-  if (!event) {
-    return next(new AppError("Event not found", 404));
-  }
+  if (!event) return next(new AppError("Event not found", 404));
 
-  res.status(200).json({
-    status: "success",
-    data: {
-      event,
-    },
-  });
+  res.status(200).json({ status: "success", data: { event } });
 });
 
 // Create event
-exports.createEvent = catchAsync(async (req, res, next) => {
+export const createEvent = catchAsync(async (req, res, next) => {
   const userId = req.user._id;
-
   const {
     name,
     description,
@@ -123,19 +105,13 @@ exports.createEvent = catchAsync(async (req, res, next) => {
     category,
   } = req.body;
 
-  console.log("Trainer name ", trainerName);
-
-  // Check for banner image
   const bannerImage = req.file;
-  if (!bannerImage) {
+  if (!bannerImage)
     return next(new AppError("Event banner image is required", 400));
-  }
 
-  // 🔹 Date & Time Validation
+  // Date & Time validation
   const eventDateTime = new Date(`${date}T${time}`);
-  const now = new Date();
-
-  if (eventDateTime <= now) {
+  if (eventDateTime <= new Date()) {
     return next(
       new AppError(
         "You cannot create an event in the past or earlier today",
@@ -144,7 +120,6 @@ exports.createEvent = catchAsync(async (req, res, next) => {
     );
   }
 
-  // 🔹 Always set status to "upcoming" for valid future events
   const status = "upcoming";
 
   // Optimize and upload to Cloudinary
@@ -161,7 +136,6 @@ exports.createEvent = catchAsync(async (req, res, next) => {
   const fileUri = getDataUri(optimizedFile);
   const cloudResponse = await uploadToCloudinary(fileUri);
 
-  // Create the event
   const event = await Event.create({
     name,
     description,
@@ -177,40 +151,28 @@ exports.createEvent = catchAsync(async (req, res, next) => {
       secure_url: cloudResponse.secure_url,
     },
     createdBy: userId,
-    status, // 🔹 Added here
+    status,
     capacity,
     category,
   });
 
-  // Add event ID to the organizer’s createdEvents array
-  await User.findByIdAndUpdate(userId, {
-    $push: { createdEvents: event._id },
-  });
+  await User.findByIdAndUpdate(userId, { $push: { createdEvents: event._id } });
 
-  res.status(201).json({
-    status: "success",
-    message: "Event Created!",
-    data: {
-      event,
-    },
-  });
+  res
+    .status(201)
+    .json({ status: "success", message: "Event Created!", data: { event } });
 });
 
 // Update event
-exports.updateEvent = catchAsync(async (req, res, next) => {
+export const updateEvent = catchAsync(async (req, res, next) => {
   const userId = req.user._id;
   const eventId = req.params.id;
-
-  // Step 1: Fetch event
   const event = await Event.findById(eventId);
+
   if (!event) return next(new AppError("Event not found", 404));
-
-  // Step 2: Authorization check
-  if (event.createdBy.toString() !== userId.toString()) {
+  if (event.createdBy.toString() !== userId.toString())
     return next(new AppError("Not authorized to update this event", 403));
-  }
 
-  // Step 3: Dynamically update allowed fields
   const allowedFields = [
     "name",
     "description",
@@ -221,8 +183,8 @@ exports.updateEvent = catchAsync(async (req, res, next) => {
     "additionalInfo",
     "trainerName",
     "guest",
-    "capacity", // ✅ added
-    "category", // ✅ added
+    "capacity",
+    "category",
   ];
 
   allowedFields.forEach((field) => {
@@ -232,11 +194,9 @@ exports.updateEvent = catchAsync(async (req, res, next) => {
     }
   });
 
-  // Step 4: Handle banner update if image is provided
   if (req.file) {
-    if (event.banner?.public_id) {
+    if (event.banner?.public_id)
       await deleteFromCloudinary(event.banner.public_id);
-    }
 
     const optimizedBuffer = await sharp(req.file.buffer)
       .resize({ width: 1200, height: 800, fit: "cover" })
@@ -257,7 +217,6 @@ exports.updateEvent = catchAsync(async (req, res, next) => {
     };
   }
 
-  // Step 5: Save updated event
   await event.save({ validateBeforeSave: false });
 
   res.status(200).json({
@@ -267,99 +226,65 @@ exports.updateEvent = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.deleteEvent = catchAsync(async (req, res, next) => {
+// Delete event
+export const deleteEvent = catchAsync(async (req, res, next) => {
   const eventId = req.params.id;
   const userId = req.user._id;
-
   const event = await Event.findById(eventId);
-  if (!event) {
-    return next(new AppError("Event not found", 404));
-  }
 
-  // Authorization check
-  if (!event.createdBy.equals(userId)) {
+  if (!event) return next(new AppError("Event not found", 404));
+  if (!event.createdBy.equals(userId))
     return next(
       new AppError("You are not authorized to delete this event", 403),
     );
-  }
 
-  // Delete image from Cloudinary
-  if (event.banner?.public_id) {
+  if (event.banner?.public_id)
     await deleteFromCloudinary(event.banner.public_id);
-  }
 
-  // Remove event from organizer
-  await User.findByIdAndUpdate(userId, {
-    $pull: { createdEvents: eventId },
-  });
-
-  // ❗ Remove event from all participants' registerdEvents
+  await User.findByIdAndUpdate(userId, { $pull: { createdEvents: eventId } });
   await User.updateMany(
-    { registerdEvents: eventId },
-    { $pull: { registerdEvents: eventId } },
+    { registeredEvents: eventId },
+    { $pull: { registeredEvents: eventId } },
   );
-
-  // Delete the actual event
   await event.deleteOne();
 
-  res.status(200).json({
-    status: "success",
-    message: "Event deleted successfully",
-  });
+  res
+    .status(200)
+    .json({ status: "success", message: "Event deleted successfully" });
 });
 
-exports.registerEvent = catchAsync(async (req, res, next) => {
+// Register for event
+export const registerEvent = catchAsync(async (req, res, next) => {
   const userId = req.user._id;
   const eventId = req.params.id;
-
   const user = await User.findById(userId);
   if (!user) return next(new AppError("User not found", 404));
 
   const event = await Event.findById(eventId);
   if (!event) return next(new AppError("Event not found", 404));
 
-  // Prevent organizer from registering their own event
-  if (event.createdBy.toString() === userId.toString()) {
+  if (event.createdBy.toString() === userId.toString())
     return next(
       new AppError("Organizers cannot register for their own event", 400),
     );
-  }
 
-  // Check if user already registered
-  if (user.registeredEvents.includes(eventId)) {
+  if (user.registeredEvents.includes(eventId))
     return next(new AppError("You are already registered for this event", 400));
-  }
 
-  if (event.status === "completed") {
-    return next(
-      new AppError(
-        "Registration is closed. This event has been completed.",
-        400,
-      ),
-    );
-  }
-
-  // ❌ Prevent registration if event date is in the past
-  if (new Date(event.date) < new Date()) {
+  if (event.status === "completed" || new Date(event.date) < new Date())
     return next(
       new AppError(
         "Registration is closed. This event has already ended.",
         400,
       ),
     );
-  }
 
-  // ❌ Prevent registration if event is full
-  if (event.attendees.length >= event.capacity) {
+  if (event.attendees.length >= event.capacity)
     return next(new AppError("This event is already full.", 400));
-  }
 
-  // Check if user is already in event's attendees
-  if (event.attendees.includes(userId)) {
+  if (event.attendees.includes(userId))
     return next(new AppError("Already in event attendees", 400));
-  }
 
-  // Register user
   user.registeredEvents.push(eventId);
   event.attendees.push(userId);
 
@@ -374,39 +299,24 @@ exports.registerEvent = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.getLoginOrganizerEvents = catchAsync(async (req, res, next) => {
+// Organizer-specific endpoints
+export const getLoginOrganizerEvents = catchAsync(async (req, res, next) => {
   const organizerId = req.user.id;
   const { search, status, page = 1, limit = 10 } = req.query;
-
   const filter = { createdBy: organizerId };
 
-  // 1) Search filter
-  if (search) {
-    filter.name = { $regex: search, $options: "i" };
-  }
+  if (search) filter.name = { $regex: search, $options: "i" };
+  if (status === "upcoming") filter.date = { $gte: new Date() };
+  else if (status === "completed") filter.date = { $lt: new Date() };
 
-  // 2) Status filter
-  if (status === "upcoming") {
-    filter.date = { $gte: new Date() };
-  } else if (status === "completed") {
-    filter.date = { $lt: new Date() };
-  }
-
-  // Convert pagination params to numbers
   const skip = (parseInt(page) - 1) * parseInt(limit);
-
-  // Get total for pagination
   const totalEvents = await Event.countDocuments(filter);
 
-  // Query with filters + pagination
   const events = await Event.find(filter)
-    .sort({ createdAt: -1 }) // latest first
+    .sort({ createdAt: -1 })
     .skip(skip)
     .limit(parseInt(limit))
-    .populate({
-      path: "createdBy",
-      select: "username profilePhoto",
-    })
+    .populate({ path: "createdBy", select: "username profilePhoto" })
     .lean();
 
   res.status(200).json({
@@ -417,21 +327,15 @@ exports.getLoginOrganizerEvents = catchAsync(async (req, res, next) => {
     totalEvents,
     totalPages: Math.ceil(totalEvents / parseInt(limit)),
     results: events.length,
-    data: {
-      events,
-    },
+    data: { events },
   });
 });
 
-exports.getOrganizerRecentEvents = catchAsync(async (req, res, next) => {
-  console.log("Fetching recent events for organizer");
-
+export const getOrganizerRecentEvents = catchAsync(async (req, res, next) => {
   const limit = 5;
   const organizer = req.user;
-
-  if (!organizer || organizer.role !== "organizer") {
+  if (!organizer || organizer.role !== "organizer")
     return next(new AppError("Only organizers can access their events", 403));
-  }
 
   const events = await Event.find({ createdBy: organizer._id })
     .sort({ createdAt: -1 })
@@ -439,33 +343,22 @@ exports.getOrganizerRecentEvents = catchAsync(async (req, res, next) => {
 
   if (!events) return next(new AppError("No events found", 404));
 
-  res.status(200).json({
-    status: "success",
-    results: events.length,
-    data: {
-      events,
-    },
-  });
+  res
+    .status(200)
+    .json({ status: "success", results: events.length, data: { events } });
 });
 
-// Get attendees for all events of a logged-in organizer
-exports.getOrganizerAttendees = catchAsync(async (req, res, next) => {
+export const getOrganizerAttendees = catchAsync(async (req, res, next) => {
   const organizerId = req.user._id;
   const { eventId } = req.query;
-
   let filter = { createdBy: organizerId };
   if (eventId) filter._id = eventId;
 
   const events = await Event.find(filter)
-    .populate({
-      path: "attendees",
-      select: "username email profilePhoto",
-    })
+    .populate({ path: "attendees", select: "username email profilePhoto" })
     .select("name date time location attendees");
 
-  // 🔥 Flat array with attendee + event info
   const attendeesWithEvent = [];
-
   events.forEach((event) => {
     event.attendees.forEach((user) => {
       attendeesWithEvent.push({
@@ -486,8 +379,6 @@ exports.getOrganizerAttendees = catchAsync(async (req, res, next) => {
     status: "success",
     totalEvents: events.length,
     totalAttendees: attendeesWithEvent.length,
-    data: {
-      attendees: attendeesWithEvent.reverse(),
-    },
+    data: { attendees: attendeesWithEvent.reverse() },
   });
 });

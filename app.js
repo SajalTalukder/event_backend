@@ -1,15 +1,16 @@
-const express = require("express");
-const userRouter = require("./routes/userRoutes");
-const eventRouter = require("./routes/eventRoutes");
+import express from "express";
+import userRouter from "./routes/userRoutes.js";
+import eventRouter from "./routes/eventRoutes.js";
+import cookieParser from "cookie-parser";
+import helmet from "helmet";
+import cors from "cors";
+import morgan from "morgan";
+import rateLimit from "express-rate-limit";
+import mongoSanitize from "express-mongo-sanitize";
+import AppError from "./utils/appError.js";
+import globalErrorHandler from "./controllers/errorController.js";
+
 const app = express();
-const cookieParser = require("cookie-parser");
-const helmet = require("helmet");
-const cors = require("cors");
-const morgan = require("morgan");
-const rateLimit = require("express-rate-limit");
-const mongoSanitize = require("express-mongo-sanitize");
-const AppError = require("./utils/appError");
-const globalErrorHandler = require("./controllers/errorController");
 
 app.set("trust proxy", 1);
 
@@ -44,22 +45,20 @@ if (process.env.NODE_ENV === "development") {
 // Body parser, reading data from the body into req.body
 app.use(express.json({ limit: "10kb" }));
 
-// // Data sanitization against NoSQL query injection
+// Data sanitization against NoSQL query injection
 app.use((req, res, next) => {
   mongoSanitize.sanitize(req.body);
   mongoSanitize.sanitize(req.params);
 
-  // For req.query, copy first
   const queryCopy = { ...req.query };
   mongoSanitize.sanitize(queryCopy);
-  req.querySanitized = queryCopy; // Optionally store it
+  req.querySanitized = queryCopy;
 
   next();
 });
 
 app.use((req, res, next) => {
   req.requestTime = new Date().toISOString();
-  // console.log(req.headers);
   next();
 });
 
@@ -73,10 +72,11 @@ app.get("/", (req, res) => {
   });
 });
 
+// Handle unknown routes
 app.use((req, res, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
 });
 
 app.use(globalErrorHandler);
 
-module.exports = app;
+export default app;

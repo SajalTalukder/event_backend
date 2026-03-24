@@ -90,6 +90,15 @@ const userSchema = new mongoose.Schema(
         ref: "Event",
       },
     ],
+    stripeAccountId: {
+      type: String,
+      default: null,
+    },
+
+    stripeConnected: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true },
 );

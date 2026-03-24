@@ -9,6 +9,8 @@ import rateLimit from "express-rate-limit";
 import mongoSanitize from "express-mongo-sanitize";
 import AppError from "./utils/appError.js";
 import globalErrorHandler from "./controllers/errorController.js";
+import paymentRouter from "./routes/paymentRoutes.js";
+import { stripeWebhook } from "./controllers/webhookController.js";
 
 const app = express();
 
@@ -42,6 +44,13 @@ if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
 }
 
+// 🔥 1. WEBHOOK FIRST
+app.post(
+  "/api/v1/payments/webhook",
+  express.raw({ type: "application/json" }),
+  stripeWebhook,
+);
+
 // Body parser, reading data from the body into req.body
 app.use(express.json({ limit: "10kb" }));
 
@@ -64,6 +73,7 @@ app.use((req, res, next) => {
 
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/events", eventRouter);
+app.use("/api/v1/payments", paymentRouter);
 
 app.get("/", (req, res) => {
   res.status(200).json({

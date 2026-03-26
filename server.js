@@ -9,7 +9,7 @@ import { startAll } from "./utils/cornjob.js";
 const DB = process.env.DB.replace("<PASSWORD>", process.env.DB_PASSWORD);
 
 // Start cron job
-startAll();
+// startAll();
 
 // Connect to MongoDB
 mongoose
